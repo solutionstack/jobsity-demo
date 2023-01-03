@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -22,22 +23,28 @@ type Server struct {
 }
 
 // StartHTTPServer creates a Server and starts it.
-func StartHTTPServer(router http.Handler, logger zerolog.Logger) error {
+func StartHTTPServer(router http.Handler, logger zerolog.Logger, pm *sync.WaitGroup, errChan chan<- error) {
 	srv, err := New(&http.Server{
 		Handler: router,
 	}, logger)
 	if err != nil {
-		return err
+		errChan <- err
+		return
 	}
 
-	return srv.Start(logger)
+	err = srv.Start(logger, pm)
+	if err != nil {
+		errChan <- err
+
+	}
+
 }
 
 // New creates a new Server, built off of a base http.Server.
 func New(s *http.Server, logger zerolog.Logger) (*Server, error) {
 	// Default server timout, in seconds
-	const defaultSrvTimeout = 3 * time.Second
-	const port = "8081"
+	const defaultSrvTimeout = 10 * time.Second
+	const port = "6000"
 
 	var (
 		srv *Server
@@ -68,10 +75,10 @@ func New(s *http.Server, logger zerolog.Logger) (*Server, error) {
 }
 
 // Start begins serving, and listens for termination signals to shutdown gracefully.
-func (srv *Server) Start(logger zerolog.Logger) error {
+func (srv *Server) Start(logger zerolog.Logger, pm *sync.WaitGroup) error {
 	var err error
 
-	go srv.shutdown(logger)
+	go srv.shutdown(logger, pm)
 
 	logger.Log().
 		Str("address", srv.address).
@@ -89,12 +96,10 @@ func (srv *Server) Start(logger zerolog.Logger) error {
 }
 
 // Shutdown server gracefully on SIGINT or SIGTERM.
-func (srv *Server) shutdown(logger zerolog.Logger) {
-	// Block until signal is received
+func (srv *Server) shutdown(logger zerolog.Logger, pm *sync.WaitGroup) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 	<-stop
-
 	// Allow up to thirty seconds for server operations to finish before
 	// canceling them.
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -106,8 +111,9 @@ func (srv *Server) shutdown(logger zerolog.Logger) {
 			Msg("Server shutdown error")
 	}
 
-	logger.Log().Msg("chat htp server shutdown")
+	logger.Log().Msg("chat http server shutdown")
 
 	// Close channel to signal shutdown is complete
 	close(srv.serverShutdown)
+	pm.Done()
 }
