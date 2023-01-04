@@ -6,6 +6,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog"
 	"github.com/solutionstack/jobsity-demo/handlers/auth"
+	"net/http"
 )
 
 func NewRouter(handlers *auth.AuthHandler) *chi.Mux {
@@ -22,6 +23,10 @@ func NewRouter(handlers *auth.AuthHandler) *chi.Mux {
 
 	r.Post("/auth/signup", handlers.Register)
 	r.Post("/auth/login", handlers.Login)
+
+	//html dir
+	static := http.FileServer(http.Dir("./static"))
+	r.Mount("/", static)
 
 	return r
 }

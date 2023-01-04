@@ -19,6 +19,7 @@ type Service interface {
 
 const (
 	userDbPrefix     = "User_"
+	SessionPrefix    = "Session_"
 	passwordHashCost = 15
 )
 
@@ -60,13 +61,13 @@ func (s *service) CreateUser(user models.Signup) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 
-	s.cache.Write(userDbPrefix+fmt.Sprintf("%v", emailHash), string(j))
+	s.cache.Write(userDbPrefix+fmt.Sprintf("%x", emailHash), string(j))
 
 	return userRecord.ID, nil
 }
 func (s *service) ValidateLogin(login models.Login) (*models.UserRecord, error) {
 	emailHash := md5.Sum([]byte(login.Email))
-	userRecordKey := userDbPrefix + fmt.Sprintf("%v", emailHash)
+	userRecordKey := userDbPrefix + fmt.Sprintf("%x", emailHash)
 
 	userRecord := s.cache.Read(userRecordKey)
 	if userRecord.Error != nil && userRecord.Error == lcache.KeyNotFoundError {
@@ -82,6 +83,17 @@ func (s *service) ValidateLogin(login models.Login) (*models.UserRecord, error) 
 	if err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(login.Password)); err != nil {
 		return nil, errors.New("password mismatch")
 	}
+
+	sk := s.initSession(login)
 	user.Password = "--redacted--"
+	user.SessionKey = sk
 	return &user, nil
+}
+
+func (s *service) initSession(login models.Login) string {
+	emailHash := md5.Sum([]byte(login.Email))
+	sessionKey := SessionPrefix + fmt.Sprintf("%x", emailHash)
+
+	s.cache.Write(sessionKey, login.Email)
+	return sessionKey
 }

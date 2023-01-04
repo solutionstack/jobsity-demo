@@ -44,7 +44,7 @@ func StartHTTPServer(router http.Handler, logger zerolog.Logger, pm *sync.WaitGr
 func New(s *http.Server, logger zerolog.Logger) (*Server, error) {
 	// Default server timout, in seconds
 	const defaultSrvTimeout = 10 * time.Second
-	const port = "6000"
+	const port = "8000"
 
 	var (
 		srv *Server
