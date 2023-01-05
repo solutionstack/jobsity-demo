@@ -10,7 +10,7 @@
 ```
 #### Then
 ```shell
-go mod tidy 
+cd ./jobsity-demo && go mod tidy 
 ```
 
 #### RUN
