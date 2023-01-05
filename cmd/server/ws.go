@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 	"github.com/gobwas/ws"
-	"github.com/gobwas/ws/wsutil"
 	"github.com/rs/zerolog"
 	socketHandler "github.com/solutionstack/jobsity-demo/handlers/ws"
+	"github.com/solutionstack/jobsity-demo/utils"
 	"net/http"
 	"os"
 	"os/signal"
@@ -25,6 +25,9 @@ func StartWS(logger zerolog.Logger, handler *socketHandler.WsHandler, pm *sync.W
 
 	mux := http.NewServeMux()
 
+	pool := NewPool(logger, errChan) //client connection pool
+	go pool.Start()
+
 	srv := &http.Server{Addr: ":" + wsAddress, Handler: mux}
 	go func() {
 		logger.Log().
@@ -38,7 +41,6 @@ func StartWS(logger zerolog.Logger, handler *socketHandler.WsHandler, pm *sync.W
 	}()
 
 	go func() {
-
 		//CLEANUP
 		<-stop
 
@@ -47,6 +49,7 @@ func StartWS(logger zerolog.Logger, handler *socketHandler.WsHandler, pm *sync.W
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
+			fmt.Println("error  %s", err)
 			errChan <- err
 		}
 
@@ -63,36 +66,25 @@ func StartWS(logger zerolog.Logger, handler *socketHandler.WsHandler, pm *sync.W
 			return
 		}
 
-		logger.Log().
-			Str("address", wsAddress).
-			Int("pid", os.Getpid()).
-			Msg("chat socket server connected")
+		//add current client to client pool
+		client := &Client{
+			ID:      utils.RandStringBytesRmndr(6),
+			Conn:    &conn,
+			Pool:    pool,
+			ErrChan: errChan,
+			Handler: handler,
+		}
 
-		go func() {
-			defer conn.Close()
-
-			for {
-				msg, op, err := wsutil.ReadClientData(conn)
-				if err != nil {
-					errChan <- err
-					return
-				}
-
-				//call websocket handler
-				response, err := handler.DefaultHandler(msg)
-				if err != nil {
-					errChan <- err
-					return
-				}
-
-				err = wsutil.WriteServerMessage(conn, op, response)
-				if err != nil {
-					errChan <- err
-					return
-				}
-			}
-		}()
+		pool.Register <- client
+		client.Read() //setup reading for current client
 
 	})
+
+	//default chat room settings
+	err := handler.DefaultSetup()
+	if err != nil {
+		errChan <- err
+		return
+	}
 
 }

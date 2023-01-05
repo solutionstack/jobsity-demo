@@ -7,6 +7,7 @@ import (
 	wshandler "github.com/solutionstack/jobsity-demo/handlers/ws"
 	svc "github.com/solutionstack/jobsity-demo/services/auth"
 	wssvc "github.com/solutionstack/jobsity-demo/services/ws"
+	"github.com/solutionstack/lcache"
 	"os"
 	"sync"
 )
@@ -17,8 +18,9 @@ func main() {
 	var processManager sync.WaitGroup
 	processManager.Add(2) //wait for both server processes to complete
 
-	newService := svc.NewService(Log)
-	wsService := wssvc.NewService(Log)
+	cache := lcache.NewCache()
+	newService := svc.NewService(Log, cache)
+	wsService := wssvc.NewService(Log, cache)
 	newHandler := handler.NewHandler(Log, newService)
 	wsHandler := wshandler.NewHandler(Log, wsService)
 	newRouter := server.NewRouter(newHandler)

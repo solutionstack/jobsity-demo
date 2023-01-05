@@ -21,6 +21,8 @@ const (
 	userDbPrefix     = "User_"
 	SessionPrefix    = "Session_"
 	passwordHashCost = 15
+	wsUsersCacheKey  = "WS_USER_DATA"
+	wsRoomsCacheKey  = "WS_ROOM_DATA"
 )
 
 type service struct {
@@ -28,9 +30,9 @@ type service struct {
 	cache  *lcache.Cache
 }
 
-func NewService(logger zerolog.Logger) Service {
+func NewService(logger zerolog.Logger, c *lcache.Cache) Service {
 	return &service{
-		cache:  lcache.NewCache(),
+		cache:  c,
 		logger: logger,
 	}
 }
@@ -43,7 +45,7 @@ func (s *service) CreateUser(user models.Signup) (uuid.UUID, error) {
 		return uuid.Nil, err
 	}
 
-	if exists := s.cache.Read(userDbPrefix + fmt.Sprintf("%v", emailHash)); exists.Value != nil {
+	if exists := s.cache.Read(userDbPrefix + fmt.Sprintf("%x", emailHash)); exists.Value != nil {
 		return uuid.Nil, errors.New("user already exist")
 	}
 
@@ -87,6 +89,8 @@ func (s *service) ValidateLogin(login models.Login) (*models.UserRecord, error) 
 	sk := s.initSession(login)
 	user.Password = "--redacted--"
 	user.SessionKey = sk
+	s.addUserToWsList(user)
+
 	return &user, nil
 }
 
@@ -96,4 +100,23 @@ func (s *service) initSession(login models.Login) string {
 
 	s.cache.Write(sessionKey, login.Email)
 	return sessionKey
+}
+
+// add to websocket online users cache
+func (s *service) addUserToWsList(user models.UserRecord) {
+	var wsUsers []models.WsUsers
+	result := s.cache.Read(wsUsersCacheKey)
+
+	if result.Value != nil {
+		json.Unmarshal([]byte(result.Value.(string)), &wsUsers)
+	}
+
+	wsUsers = append(wsUsers, models.WsUsers{
+		Name:       user.FirstName,
+		Email:      user.Email,
+		SessionKey: user.SessionKey,
+	})
+	data, _ := json.Marshal(wsUsers)
+
+	s.cache.Write(wsUsersCacheKey, string(data))
 }
