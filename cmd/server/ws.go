@@ -19,14 +19,11 @@ const (
 	wsAddress = "6001"
 )
 
-func StartWS(logger zerolog.Logger, handler *socketHandler.WsHandler, pm *sync.WaitGroup, errChan chan<- error) {
+func StartWS(logger zerolog.Logger, handler *socketHandler.WsHandler, pm *sync.WaitGroup, pool *Pool, errChan chan<- error) {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	mux := http.NewServeMux()
-
-	pool := NewPool(logger, errChan) //client connection pool
-	go pool.Start()
 
 	srv := &http.Server{Addr: ":" + wsAddress, Handler: mux}
 	go func() {
@@ -49,7 +46,6 @@ func StartWS(logger zerolog.Logger, handler *socketHandler.WsHandler, pm *sync.W
 		defer cancel()
 
 		if err := srv.Shutdown(ctx); err != nil && err != http.ErrServerClosed {
-			fmt.Println("error  %s", err)
 			errChan <- err
 		}
 
@@ -74,8 +70,8 @@ func StartWS(logger zerolog.Logger, handler *socketHandler.WsHandler, pm *sync.W
 			ErrChan: errChan,
 			Handler: handler,
 		}
-
 		pool.Register <- client
+
 		client.Read() //setup reading for current client
 
 	})

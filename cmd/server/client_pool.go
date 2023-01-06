@@ -9,6 +9,7 @@ import (
 	"github.com/solutionstack/jobsity-demo/models"
 	"net"
 	"strings"
+	"sync"
 )
 
 type Client struct {
@@ -17,14 +18,26 @@ type Client struct {
 	Pool    *Pool
 	ErrChan chan<- error
 	Handler *socketHandler.WsHandler
+	sync.RWMutex
 }
 
+func (c *Client) WriteMessageToClient(msg []byte) {
+
+	err := wsutil.WriteServerMessage(*c.Conn, 0x1, msg)
+	if err != nil {
+		c.ErrChan <- err
+		return
+	}
+
+}
 func (c *Client) Read() {
+
 	defer func() {
 		c.Pool.Unregister <- c
 		(*c.Conn).Close()
 	}()
 
+	///read  client messages here
 	for {
 		msg, _, err := wsutil.ReadClientData(*c.Conn)
 		if err != nil {
@@ -42,44 +55,56 @@ func (c *Client) Read() {
 			return
 		}
 		var respMsg models.WsMessage
-		if err := json.Unmarshal(response, &respMsg); err != nil {
-			c.ErrChan <- err
-			return
-		}
-
-		//send message back to a single client or broadcast
-		switch respMsg.Command {
-		case models.ROOM_READ, models.BAD_SESSION, models.HISTORY:
-			c.Pool.Logger.Info().Msg(fmt.Sprintf("Sending message to client. ID:%s", c.ID))
-			err := wsutil.WriteServerMessage(*c.Conn, 0x1, response)
-			if err != nil {
-				c.Pool.ErrChan <- err
+		if string(response) != "" {
+			if err := json.Unmarshal(response, &respMsg); err != nil {
+				c.ErrChan <- err
 				return
 			}
-		default:
-			c.Pool.Broadcast <- response
+
+			//send message back to a single client or broadcast
+			switch respMsg.Command {
+			case models.ROOM_READ, models.BAD_SESSION, models.HISTORY:
+				c.Pool.Logger.Info().Msg(fmt.Sprintf("Sending message to client. ID:%s", c.ID))
+				c.WriteMessageToClient(response)
+			case models.STOCK_TICKER:
+				//handled elsewhere
+			default:
+				c.Pool.Broadcast <- response
+			}
 		}
+		//select {
+		//case msg := <-*stockBotMsgChan:
+		//	fmt.Println("read")
+		//	c.writeMessageToClient(msg)
+		//default:
+		//	continue
+		//}
 
 	}
+
+	fmt.Println("exit intl")
+
 }
 
 type Pool struct {
-	Register   chan *Client
-	Unregister chan *Client
-	Clients    map[*Client]bool
-	Broadcast  chan []byte
-	Logger     zerolog.Logger
-	ErrChan    chan<- error
+	Register             chan *Client
+	Unregister           chan *Client
+	Clients              map[*Client]bool
+	Broadcast            chan []byte
+	StockTickerBroadcast chan []byte
+	Logger               zerolog.Logger
+	ErrChan              chan<- error
 }
 
-func NewPool(logger zerolog.Logger, errChan chan<- error) *Pool {
+func NewPool(logger zerolog.Logger, errChan chan<- error, StockTickerBroadcast chan []byte) *Pool {
 	return &Pool{
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		Clients:    make(map[*Client]bool),
-		Broadcast:  make(chan []byte),
-		Logger:     logger,
-		ErrChan:    errChan,
+		Register:             make(chan *Client),
+		Unregister:           make(chan *Client),
+		Clients:              make(map[*Client]bool),
+		Broadcast:            make(chan []byte),
+		StockTickerBroadcast: StockTickerBroadcast,
+		Logger:               logger,
+		ErrChan:              errChan,
 	}
 }
 
@@ -101,12 +126,13 @@ func (pool *Pool) Start() {
 		case message := <-pool.Broadcast:
 			pool.Logger.Info().Msg("Sending message to all clients in Pool")
 			for client, _ := range pool.Clients {
-				err := wsutil.WriteServerMessage(*client.Conn, 0x1, message)
+				client.WriteMessageToClient(message)
+			}
 
-				if err != nil {
-					pool.ErrChan <- err
-					return
-				}
+		case message := <-pool.StockTickerBroadcast:
+			pool.Logger.Info().Msg("Sending message to all clients bb in Pool")
+			for client, _ := range pool.Clients {
+				client.WriteMessageToClient(message)
 			}
 		}
 	}

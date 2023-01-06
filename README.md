@@ -16,15 +16,26 @@ cd ./jobsity-demo && go mod tidy
 #### RUN
 ```shell
  go run cmd/cmd.go
-
 ```
+
+
+
+#### ENV
+```shell
+AMQ_HOST
+AMQ_USER
+AMQ_PASS
+```
+
 This starts the app http server on port `8000` and websocket server on port `6001`
 
 Visit `http://localhost:8000` in your browser which should take you to the register and sign in page
 
 On login, you'd be redirected to the chat interface
 
-An unlimited number of users can be logged in on different browser
+To get stock quotes, type a slash  command in the format `/stock=stockcode`
+
+An unlimited number of users can be logged in on different browsers or tabs
 
 ### Libraries used
 ```shell

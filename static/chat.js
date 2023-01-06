@@ -67,6 +67,16 @@ function webSocketCommand(command, newMsg) {
                 timestamp: (new Date()).toJSON()
             })
             break;
+        case WsCommands.STOCK_TICKER: //send a new chat message for the current room
+            WsMessage.command = WsCommands.STOCK_TICKER
+            WsMessage.room = currentRoom
+            WsMessage.data = JSON.stringify({
+                name: "Tickbot",
+                email: "tickbot@bot.net",
+                data: newMsg.trim(),
+                timestamp: (new Date()).toJSON()
+            })
+            break;
         default:
     }
     globalWs.send(JSON.stringify(WsMessage))
@@ -93,6 +103,7 @@ function webSocketMMessageHandler(event) {
             insertMessageHistory(roomMsg)
             break;
         case WsCommands.MESSAGE:
+        case WsCommands.STOCK_TICKER:
 
             if (evData.room !== currentRoom) break;
             let newMsg = JSON.parse(evData.data)
@@ -206,11 +217,35 @@ function insertRoomList(roomList) {
 }
 
 function sendChatMsg() {
+
+
     let msgBox = document.getElementById("chat-msg-box")
     let msg = msgBox.value
     if (msg === "") return;
-    webSocketCommand(WsCommands.MESSAGE, msg)
+
     msgBox.value = ""
+
+
+    if (msg.indexOf("/stock") >-1){
+        return sendBotMessage(msg)
+    }
+    webSocketCommand(WsCommands.MESSAGE, msg)
+}
+
+function sendBotMessage(msg) {
+    let msgParts = msg.split("=")
+    if (msgParts.length !=2){
+        alert("Invalid Stock Ticker message")
+        return
+    }
+    if(msgParts[1].indexOf(".") < -1){
+        alert("Invalid Stock Ticker message")
+        return
+    }
+
+    webSocketCommand(WsCommands.STOCK_TICKER, msg)
+
+
 }
 
 function scrollChatScreenToBottom() {

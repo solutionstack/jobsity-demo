@@ -6,18 +6,21 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/solutionstack/jobsity-demo/models"
 	"github.com/solutionstack/jobsity-demo/services/ws"
+	"github.com/solutionstack/jobsity-demo/tickbot"
 	"time"
 )
 
 type WsHandler struct {
 	logger zerolog.Logger
 	svc    ws.WsService
+	bot    tickbot.TickBot
 }
 
-func NewHandler(logger zerolog.Logger, svc ws.WsService) *WsHandler {
+func NewHandler(logger zerolog.Logger, bot tickbot.TickBot, svc ws.WsService) *WsHandler {
 	return &WsHandler{
 		logger: logger,
 		svc:    svc,
+		bot:    bot,
 	}
 }
 
@@ -25,6 +28,7 @@ func (h *WsHandler) CommandHandler(data []byte) ([]byte, error) {
 	var wsMessage models.WsMessage
 
 	if err := json.Unmarshal(data, &wsMessage); err != nil {
+		fmt.Println(err)
 		return []byte(""), err
 	}
 
@@ -55,6 +59,13 @@ func (h *WsHandler) CommandHandler(data []byte) ([]byte, error) {
 		jsonData, _ := json.Marshal(respMessage)
 
 		return jsonData, nil
+
+	case models.STOCK_TICKER: //stock ticker new message
+		err := h.bot.BotMessage(wsMessage)
+		if err != nil {
+			return []byte(""), err
+		}
+		return []byte(""), nil
 
 	case models.ROOM_READ: //fetch room list
 		roomList, _ := h.svc.GetRoomsList()
@@ -87,7 +98,6 @@ func (h *WsHandler) CommandHandler(data []byte) ([]byte, error) {
 	case models.MESSAGE: //fetch room messages
 		msgs, err := h.svc.InsertMessage(wsMessage)
 		if err != nil {
-			fmt.Println(err)
 			return []byte(""), nil
 		}
 		msgsJson, _ := json.Marshal(msgs)
@@ -116,4 +126,8 @@ func (h *WsHandler) validateSession(wsMessage models.WsMessage) bool {
 func (h *WsHandler) DefaultSetup() error {
 
 	return h.svc.SetupDefaultConfig()
+}
+
+func (h *WsHandler) HandleStockTickerResponse() {
+
 }

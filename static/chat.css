@@ -198,7 +198,7 @@ main footer{
 }
 main footer textarea{
     resize:none;
-    border:none;
+    border:solid #6fbced 1px;
     display:block;
     width:100%;
     height:80px;

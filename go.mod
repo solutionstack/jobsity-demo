@@ -12,6 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/rs/zerolog v1.27.0
 	github.com/solutionstack/lcache v0.0.0-20220629211239-8f9a31d82824
+	github.com/streadway/amqp v1.0.0
 	github.com/stretchr/testify v1.7.5
 	golang.org/x/crypto v0.4.0
 )
