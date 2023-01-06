@@ -130,7 +130,7 @@ func (pool *Pool) Start() {
 			}
 
 		case message := <-pool.StockTickerBroadcast:
-			pool.Logger.Info().Msg("Sending message to all clients bb in Pool")
+			pool.Logger.Info().Msg("Sending message to all clients in Pool")
 			for client, _ := range pool.Clients {
 				client.WriteMessageToClient(message)
 			}
