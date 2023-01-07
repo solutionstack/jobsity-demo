@@ -3,7 +3,6 @@ package tickbot
 import (
 	"encoding/csv"
 	"encoding/json"
-	"fmt"
 	"github.com/rs/zerolog"
 	"github.com/solutionstack/jobsity-demo/models"
 	"github.com/streadway/amqp"
@@ -170,6 +169,5 @@ func (b *bot) processMessage(msg []byte, respChan *chan []byte) {
 	}
 
 	wsMsgJson, _ := json.Marshal(wsMsg)
-	fmt.Println(string(wsMsgJson))
 	*respChan <- wsMsgJson
 }
