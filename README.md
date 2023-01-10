@@ -46,7 +46,7 @@ e.g
 docker build -t jobsity-demo .
 docker run -p 8000:8000 -p 6001:6001 jobsity-demo
 
-Then open localhost:800o in your browser
+Then open localhost:8000 in your browser
 ```
 
 ### Libraries used
