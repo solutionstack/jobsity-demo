@@ -15,7 +15,7 @@ cd ./jobsity-demo && go mod tidy
 
 #### RUN
 ```shell
- go run cmd/cmd.go
+ go run main.go
 ```
 
 
@@ -36,6 +36,18 @@ On login, you'd be redirected to the chat interface
 To get stock quotes, type a slash  command in the format `/stock=stockcode`
 
 An unlimited number of users can be logged in on different browsers or tabs
+
+
+### Docker build
+```shell
+
+e.g
+
+docker build -t jobsity-demo .
+docker run -p 8000:8000 -p 6001:6001 jobsity-demo
+
+Then open localhost:800o in your browser
+```
 
 ### Libraries used
 ```shell
