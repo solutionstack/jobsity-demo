@@ -22,9 +22,11 @@ cd ./jobsity-demo && go mod tidy
 
 #### ENV
 ```shell
-AMQ_HOST
-AMQ_USER
-AMQ_PASS
+please pass the following as --build-arg and they should hold the relevant rabbitmq/amqp connection parameters
+
+ARG_AMQ_HOST=
+ARG_AMQ_USER=
+ARG_AMQ_PASS=
 ```
 
 This starts the app http server on port `8000` and websocket server on port `6001`
