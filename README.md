@@ -22,8 +22,14 @@ cd ./jobsity-demo && go mod tidy
 
 #### ENV
 ```shell
-please pass the following as --build-arg and they should hold the relevant rabbitmq/amqp connection parameters
+When running dirrectly ensure the fllowing AMQP/RabbitMQ parameters are avalable in the enviroment
 
+AMQ_HOST=
+AMQ_USER=
+AMQ_PASS=
+
+
+For a docker build the following --build-arg(s) should be passed
 ARG_AMQ_HOST=
 ARG_AMQ_USER=
 ARG_AMQ_PASS=
